@@ -27,8 +27,12 @@ main:
         mov ecx, [VALUE_B]
         mov [VALUE_A], ecx
         mov [VALUE_B], eax
+        push [VALUE_B]
+        push [VALUE_A]
+        push msgPrompt
         call printf
-                sub esp, 12
+        add esp, 12
 
         xor ebx, ebx
         int 0x80
+
