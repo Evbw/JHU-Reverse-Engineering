@@ -33,5 +33,7 @@ main:
         call printf
         add esp, 12
 
-        xor ebx, ebx
-        int 0x80
+        mov esp, ebp
+        pop ebp
+        xor eax, eax
+        ret
