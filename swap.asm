@@ -13,9 +13,9 @@ extern printf
 main:
         push ebp
         mov ebp, esp
-        push msgPrompt
         push dword [VALUE_B]
         push dword [VALUE_A]    ;Set VALUE_A on top with VALUE_B below it
+        push msgPrompt
         call printf
         add esp, 12
 
