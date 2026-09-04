@@ -1,7 +1,7 @@
 [BITS 32]
 
 section .data
-        msgPrompt db "VALUE_A is: %d. VALUE_B is: %d.", 10, 0
+        msgPrompt db "The first value on the stack is: %d. The next value is: %d.", 10, 0
         msgPrompt2 db "Performing swap now.", 10, 0
         VALUE_A dd 1            ;Will push solely to guarantee values
         VALUE_B dd 2
@@ -17,17 +17,16 @@ main:
         push dword [VALUE_A]    ;Set VALUE_A on top with VALUE_B below it
         push msgPrompt
         call printf
-        add esp, 12
+        add esp, 4
 
         push msgPrompt2
         call printf
         add esp, 4
-        mov eax, [VALUE_A]
-        mov ecx, [VALUE_B]
-        mov [VALUE_A], ecx
-        mov [VALUE_B], eax
-        push dword [VALUE_B]
-        push dword [VALUE_A]
+
+        pop ebx                 ;Move VALUE_A to ebx
+        pop ecx                 ;Move VALUE_B to ecx
+        push ebx                ;Put VALUE_A on the stack
+        push ecx                ;Put VALUE_B on th stack, in reverse.
         push msgPrompt
         call printf
         add esp, 12
