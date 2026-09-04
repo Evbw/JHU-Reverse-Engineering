@@ -3,9 +3,8 @@
 section .data
         msgPrompt db "VALUE_A is: %d. VALUE_B is: %d.", 10, 0
         msgPrompt2 db "Performing swap now.", 10, 0
-        VALUE_A dd 1
+        VALUE_A dd 1            ;Will push solely to guarantee values
         VALUE_B dd 2
-        VALUE_C dd 0
 
 section .text
 global main
@@ -14,9 +13,9 @@ extern printf
 main:
         push ebp
         mov ebp, esp
-        push dword [VALUE_B]
-        push dword [VALUE_A]
         push msgPrompt
+        push dword [VALUE_B]
+        push dword [VALUE_A]    ;Set VALUE_A on top with VALUE_B below it
         call printf
         add esp, 12
 
