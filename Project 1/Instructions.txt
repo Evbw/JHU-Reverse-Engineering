@@ -1,0 +1,33 @@
+Please see file uploaded with module content, “Programming_Assignment_1.pdf”. A starter disassembler (disasm-example.py) has been supplied for your convenience. It requires the use of Python3. In addition, there is still a fair bit to implement, and it is meant to act as a starter. There are much more efficient ways to implement this, however, this one provides a simplistic one-time pass that allows you to keep track of labels easily too.
+
+IMPORTANT NOTE: THE SUPPLIED EXAMPLES ARE NOT COMPLETE. It is your responsibility to ensure you have tested each of the required cases properly. Recall that you can create your own tests using nasm. The provided examples may also include unsupported instructions for your error handling.
+
+This assignment will be graded as one of the projects for the semester.
+
+Instructions: Download the problem set. Complete the assignment and submit your source code and binary through Canvas. Please also submit a PDF with your compare/contrast of the two disassembly algorithms . You may tar and/or zip your code materials. Be sure to include explicit instructions on how to build your program.
+
+disasm_example.pyDownload disasm_example.py - This is a skeleton Python3 program that you may start from. It needs a lot of changes to it. You are not required to use it, but it is given as a helpful aide.
+
+Sample assembly listings and pre-assembled binaries. Please remember, your program will require the "-i" argument on the command line. The file that is passed in will be the assembled binary file (in the examples provide, these are the files with no extensions). The .s files will not be inputs to your program as these are already human readable. Your disassembler will take machine code (binary input) and produce the human readable listing as outlined in the PDF.
+
+The following files are supplied as they can help you with some of the requirements to handle the special cases.
+
+call_missingbytesDownload call_missingbytes - This is the case where an instruction (in this case the call) does not have enough bytes to be complete.
+
+call_missingbytes.sDownload call_missingbytes.s
+
+call_withinselfDownload call_withinself - This is the case where the target calculation resides within the call itself.
+
+call_withinself.sDownload call_withinself.s
+
+neg_dispDownload neg_disp - This is the case where the disp8 is a negative value.
+
+neg_disp.sDownload neg_disp.s
+
+bad_clflushDownload bad_clflush - This is the case where clflush is using an illegal addressing mode.
+
+bad_clflush.sDownload bad_clflush.s
+
+bad_leaDownload bad_lea - This is the case where lea is using an illegal addressing mode.
+
+bad_lea.s
