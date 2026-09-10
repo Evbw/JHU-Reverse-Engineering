@@ -14,21 +14,71 @@
 #
 ######################################################################
 import sys
-
+import argparse
 
 #
 # Key is the opcode
 # value is a list of useful information
 GLOBAL_OPCODE_MAP = {
-    # OPCODE : [ mnemonic or None if requiers opcode extension, hasModRMByte,
+    # OPCODE : [ mnemonic or None if requires opcode extension, hasModRMByte,
     # OpEn, OpcodeExtension dictionary ],
     0x05 : ['add eax, ', False, 'id', None ],
     0x01 : ['add ', True, 'mr', None], 
     0x03 : ['add ', True, 'rm', None],
+    0x25 : ['and eax, ', False, 'i', None ],
+    0x21 : ['and ', True, 'mr', None],
+    0x23 : ['and ', True, 'rm', None ],
+    0xE8 : ['call ', False, 'd', None],
+    0x3D : ['cmp eax, ', False, 'i', None],
+    0x39 : ['cmp ', True, 'mr', None ],
+    0x3B : ['cmp ', True, 'rm', None], 
+    0x48 : ['dec ', False, 'o', None ],
+    0x40 : ['inc ', False, 'o', None ],
+    0xEB : ['jmp ', False, 'd', None], 
+    0xE9 : ['jmp ', False, 'd', None],
+    0x74 : ['jz ', False, 'd', None], 
+    #0x0F 0x84 : ['jz ', False, 'd', None],
+    0x75 : ['jnz ', False, 'd', None ],
+    #0x0F 0x85 : ['jnz ', False, 'd', None], 
+    0x8D : ['lea ', True, 'rm', None],
+    0xA1 : ['mov eax, ', False, 'fd', None ],
+    0xA3 : ['mov ', False, 'td', None], 
+    0xB8 : ['mov ', False, 'oi', None],
+    0x89 : ['mov ', True, 'mr', None], 
+    0x8B : ['mov ', True, 'rm', None],
+    0xA5 : ['movsd ', False, 'zo', None ],
+    0x90 : ['nop ', False, 'zo', None], 
+    0x0D : ['or eax, ', False, 'i', None ],
+    0x09 : ['or ', True, 'mr', None],
+    0x0B : ['or ', True, 'rm', None ],
+    0x58 : ['pop ', False, 'o', None],
+    0x50 : ['push ', False, 'o', None], 
+    0x68 : ['push ', False, 'i', None],
+    0x6A : ['push ', False, 'i', None ],
+    #0xF2 0xA7: ['repne ', False, 'zo', None], 
+    0xCB : ['retf ', False, 'zo', None],
+    0xCA : ['retf ', False, 'i', None ],
+    0xC3 : ['retn ', False, 'zo', None], 
+    0xC2 : ['retn ', False, 'i', None],
+    0x2D : ['sub eax, ', False, 'id', None ],
+    0x29 : ['sub ', True, 'mr', None],
+    0x2B : ['sub ', True, 'rm', None ],
+    0xA9 : ['test eax, ', False, 'i', None], 
+    0x85 : ['test ', True, 'mr', None ],
+    0x35 : ['xor eax, ', False, 'i', None],
+    0x31 : ['xor ', True, 'mr', None ],
+    0x33 : ['xor ', True, 'rm', None], 
 
-    # Example where need to examine the opcode extension
+    # Codes needing opcode extension
     0x81 : [ None, True, 'mi', { 0: 'add', 1: 'or', 2: 'adc', 3: 'sbb', 4:
                                 'and', 5: 'sub', 6: 'xor', 7: 'cmp' } ],
+    0x8F : [ None, True, 'm', { 0: 'pop' } ],
+    0xC7 : [ None, True, 'mi', { 0: 'mov' } ],
+    0xF7 : [ None, True, 'rm', { 0: 'test', 2: 'not', 3: 'neg', 4:
+                                'mul', 5: 'imul', 6: 'div', 7: 'idiv' }], 
+    0xFF : [ None, True, 'm', { 0: 'inc', 1: 'dec', 2: 'call', 3: 'call', 4:
+                                'jmp', 5: 'jmp', 6: 'push' }],
+    #0x0F 0xAE : [ None , True, 'm', { 0: 'fxsave', 1: 'fxrstor', 2: 'ldmxcsr', 3: 'stmxcsr', 4: 'xsave', 5: 'xrstor', 6: 'xsaveopt', 7: 'clflush' } ],
 }
 
 GLOBAL_REGISTER_NAMES = [ 'eax', 'ecx', 'edx', 'ebx', 'esp', 'ebp', 'esi', 'edi' ]
@@ -129,7 +179,7 @@ def disassemble(b):
                         # will need to parse the displacement32
                     elif mod == 1:
                         #Uncomment next line when you've implemented this 
-                        implemented = True
+                        #implemented = True
                         print ('r/m32 operand is [ reg + disp8 ] -> please implement')
                         # will need to parse the displacement8
                     else:
@@ -171,17 +221,14 @@ def getfile(filename):
     return a		
 
 def main():
-    #
-    # Consider using:
-    # import argparse
-    #
+    
     #parser = argparse.ArgumentParser()
     #parser.add_argument('-e', '--examplearg', help='Shows an example usage', dest='examplename', required=True)
     #args = parser.parse_args()
-    #
+    
     # access the value using:
-    # if args.examplename != None:
-    #     print("Passed in value %s" % args.examplename)
+    #if args.examplename != None:
+    #    print("Passed in value %s" % args.examplename)
 
 
     import sys 
