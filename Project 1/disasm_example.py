@@ -82,7 +82,6 @@ TWO_BYTE_OPCODE_MAP = {
     # OpEn, OpcodeExtension dictionary ],
     0x84 : ['jz ', False, 'd', None],
     0x85 : ['jnz ', False, 'd', None], 
-    0xA7: ['repne ', False, 'zo', None],
 
     # Codes needing opcode extension
     0xAE : [ None , True, 'm', { 7: 'clflush' } ],
@@ -163,7 +162,11 @@ def disassemble(b):
                 instruction_bytes += ' ' + "%02x" % b[i]
                 outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + 'repne cmpsd'
                 i += 1      
-                continue      
+                continue
+
+        if (opcode & 0xF8) in (0x40, 0x48, 0x50, 0x58, 0xB8):
+            rd = opcode & 0x07
+            opcode = opcode & 0xF8
 
         if isValidOpcode( opcode, map ):
             print ('Found valid opcode')
@@ -228,16 +231,19 @@ def disassemble(b):
                         print ('Adding to list ' + instruction)
                         outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + instruction
                     else:
-                        outputList[ "%08X" % orig_index ] = 'db %02x' % (int(opcode) & 0xff)
+                        outputList[ "%08X" % orig_index ] = 'db %02x' % b[orig_index]
+                        i = orig_index + 1
                 else:
                     print ('Does not require MODRM - modify to complete the instruction and consume the appropriate bytes')
-                    outputList[ "%08X" % orig_index ] = 'db %02x' % (int(opcode) & 0xff)
+                    outputList[ "%08X" % orig_index ] = 'db %02x' % b[orig_index]
+                    i = orig_index + 1
             #except:
             else:
                 outputList[ "%08X" % orig_index ] = 'db %02x' % (int(opcode) & 0xff)
                 i = orig_index
         else:
-            outputList[ "%08X" % orig_index ] = 'db %02x' % (int(opcode) & 0xff)
+            outputList[ "%08X" % orig_index ] = 'db %02x' % b[orig_index]
+            i = orig_index + 1
 
 
     printDisasm (outputList)
