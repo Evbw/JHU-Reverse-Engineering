@@ -235,6 +235,9 @@ def disassemble(b):
                         i = orig_index + 1
                 else:
                     print ('Does not require MODRM - modify to complete the instruction and consume the appropriate bytes')
+                    if li[2] == 'o':
+                        outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + li[0] + GLOBAL_REGISTER_NAMES[rd]
+                        continue
                     outputList[ "%08X" % orig_index ] = 'db %02x' % b[orig_index]
                     i = orig_index + 1
             #except:
