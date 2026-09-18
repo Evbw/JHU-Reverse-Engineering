@@ -90,7 +90,7 @@ TWO_BYTE_OPCODE_MAP = {
 
 GLOBAL_REGISTER_NAMES = [ 'eax', 'ecx', 'edx', 'ebx', 'esp', 'ebp', 'esi', 'edi' ]
 
-def isValidOpcode(opcode):
+def isValidOpcode(opcode, map):
     if opcode in map:
         return True
     return False
@@ -113,7 +113,7 @@ def printDisasm( l ):
     for addr in sorted(l):
         print( '%s: %s' % (addr, l[addr]) )
 
-def disassemble(b, map):
+def disassemble(b):
 
     ## TM
     # I would suggest maintaining an "output" dictionary
@@ -145,15 +145,16 @@ def disassemble(b, map):
 
         if opcode == 0x0F:
             if i >= len(b):
-                outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + instruction
+                outputList[ "%08X" % orig_index ] = 'db %02x' % b[orig_index]
                 i = orig_index + 1
-                map = TWO_BYTE_OPCODE_MAP
                 continue
             else:
-                continue
-                
+                opcode = b[i]
+                instruction_bytes += ' ' + "%02x" % b[i]
+                map = TWO_BYTE_OPCODE_MAP
+                i += 1                
 
-        if isValidOpcode( opcode ):
+        if isValidOpcode( opcode, map ):
             print ('Found valid opcode')
             if 1:
                 li = GLOBAL_OPCODE_MAP[opcode]
