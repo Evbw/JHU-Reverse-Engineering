@@ -75,24 +75,23 @@ GLOBAL_OPCODE_MAP = {
                                 'mul', 5: 'imul', 6: 'div', 7: 'idiv' }], 
     0xFF : [ None, True, 'm', { 0: 'inc', 1: 'dec', 2: 'call', 3: 'call', 4:
                                 'jmp', 5: 'jmp', 6: 'push' }],
-    #0x0F 0xAE : [ None , True, 'm', { 0: 'fxsave', 1: 'fxrstor', 2: 'ldmxcsr', 3: 'stmxcsr', 4: 'xsave', 5: 'xrstor', 6: 'xsaveopt', 7: 'clflush' } ],
 }
 
 TWO_BYTE_OPCODE_MAP = {
     # OPCODE : [ mnemonic or None if requires opcode extension, hasModRMByte,
     # OpEn, OpcodeExtension dictionary ],
-    0x0F 0x84 : ['jz ', False, 'd', None],
-    0x0F 0x85 : ['jnz ', False, 'd', None], 
-    0xF2 0xA7: ['repne ', False, 'zo', None],
+    0x84 : ['jz ', False, 'd', None],
+    0x85 : ['jnz ', False, 'd', None], 
+    0xA7: ['repne ', False, 'zo', None],
 
     # Codes needing opcode extension
-    0x0F 0xAE : [ None , True, 'm', { 0: 'fxsave', 1: 'fxrstor', 2: 'ldmxcsr', 3: 'stmxcsr', 4: 'xsave', 5: 'xrstor', 6: 'xsaveopt', 7: 'clflush' } ],
+    0xAE : [ None , True, 'm', { 0: 'fxsave', 1: 'fxrstor', 2: 'ldmxcsr', 3: 'stmxcsr', 4: 'xsave', 5: 'xrstor', 6: 'xsaveopt', 7: 'clflush' } ],
 }
 
 GLOBAL_REGISTER_NAMES = [ 'eax', 'ecx', 'edx', 'ebx', 'esp', 'ebp', 'esi', 'edi' ]
 
 def isValidOpcode(opcode):
-    if opcode in GLOBAL_OPCODE_MAP.keys():
+    if opcode in map:
         return True
     return False
 
@@ -114,7 +113,7 @@ def printDisasm( l ):
     for addr in sorted(l):
         print( '%s: %s' % (addr, l[addr]) )
 
-def disassemble(b):
+def disassemble(b, map):
 
     ## TM
     # I would suggest maintaining an "output" dictionary
@@ -135,24 +134,24 @@ def disassemble(b):
         instruction_bytes = "%02x" % b[i]
         instruction = ''
         orig_index = i
+        map = GLOBAL_OPCODE_MAP
         
         i += 1
-
-        if opcode == 0x0F:
-            if i >= len(b):
-                outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + instruction
-                i = orig_index + 1
-                continue
-            else
-
-
 
         # Hint this is here for a reason, but is this the only spot
         # such a check is required in?
         if i > len(b):
            break
 
-        
+        if opcode == 0x0F:
+            if i >= len(b):
+                outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + instruction
+                i = orig_index + 1
+                map = TWO_BYTE_OPCODE_MAP
+                continue
+            else:
+                continue
+                
 
         if isValidOpcode( opcode ):
             print ('Found valid opcode')
