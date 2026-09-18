@@ -238,6 +238,9 @@ def disassemble(b):
                     if li[2] == 'o':
                         outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + li[0] + GLOBAL_REGISTER_NAMES[rd]
                         continue
+                    elif li[2] == 'zo':
+                        outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + li[0]
+                        continue
                     outputList[ "%08X" % orig_index ] = 'db %02x' % b[orig_index]
                     i = orig_index + 1
             #except:
