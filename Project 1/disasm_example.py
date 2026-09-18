@@ -37,9 +37,7 @@ GLOBAL_OPCODE_MAP = {
     0xEB : ['jmp ', False, 'd', None], 
     0xE9 : ['jmp ', False, 'd', None],
     0x74 : ['jz ', False, 'd', None], 
-    #0x0F 0x84 : ['jz ', False, 'd', None],
     0x75 : ['jnz ', False, 'd', None ],
-    #0x0F 0x85 : ['jnz ', False, 'd', None], 
     0x8D : ['lea ', True, 'rm', None],
     0xA1 : ['mov eax, ', False, 'fd', None ],
     0xA3 : ['mov ', False, 'td', None], 
@@ -55,7 +53,6 @@ GLOBAL_OPCODE_MAP = {
     0x50 : ['push ', False, 'o', None], 
     0x68 : ['push ', False, 'i', None],
     0x6A : ['push ', False, 'i', None ],
-    #0xF2 0xA7: ['repne ', False, 'zo', None], 
     0xCB : ['retf ', False, 'zo', None],
     0xCA : ['retf ', False, 'i', None ],
     0xC3 : ['retn ', False, 'zo', None], 
@@ -79,6 +76,17 @@ GLOBAL_OPCODE_MAP = {
     0xFF : [ None, True, 'm', { 0: 'inc', 1: 'dec', 2: 'call', 3: 'call', 4:
                                 'jmp', 5: 'jmp', 6: 'push' }],
     #0x0F 0xAE : [ None , True, 'm', { 0: 'fxsave', 1: 'fxrstor', 2: 'ldmxcsr', 3: 'stmxcsr', 4: 'xsave', 5: 'xrstor', 6: 'xsaveopt', 7: 'clflush' } ],
+}
+
+TWO_BYTE_OPCODE_MAP = {
+    # OPCODE : [ mnemonic or None if requires opcode extension, hasModRMByte,
+    # OpEn, OpcodeExtension dictionary ],
+    0x0F 0x84 : ['jz ', False, 'd', None],
+    0x0F 0x85 : ['jnz ', False, 'd', None], 
+    0xF2 0xA7: ['repne ', False, 'zo', None],
+
+    # Codes needing opcode extension
+    0x0F 0xAE : [ None , True, 'm', { 0: 'fxsave', 1: 'fxrstor', 2: 'ldmxcsr', 3: 'stmxcsr', 4: 'xsave', 5: 'xrstor', 6: 'xsaveopt', 7: 'clflush' } ],
 }
 
 GLOBAL_REGISTER_NAMES = [ 'eax', 'ecx', 'edx', 'ebx', 'esp', 'ebp', 'esi', 'edi' ]
@@ -129,6 +137,15 @@ def disassemble(b):
         orig_index = i
         
         i += 1
+
+        if opcode == 0x0F:
+            if i >= len(b):
+                outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + instruction
+                i = orig_index + 1
+                continue
+            else
+
+
 
         # Hint this is here for a reason, but is this the only spot
         # such a check is required in?
