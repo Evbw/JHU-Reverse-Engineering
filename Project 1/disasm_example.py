@@ -85,7 +85,7 @@ TWO_BYTE_OPCODE_MAP = {
     0xA7: ['repne ', False, 'zo', None],
 
     # Codes needing opcode extension
-    0xAE : [ None , True, 'm', { 0: 'fxsave', 1: 'fxrstor', 2: 'ldmxcsr', 3: 'stmxcsr', 4: 'xsave', 5: 'xrstor', 6: 'xsaveopt', 7: 'clflush' } ],
+    0xAE : [ None , True, 'm', { 7: 'clflush' } ],
 }
 
 GLOBAL_REGISTER_NAMES = [ 'eax', 'ecx', 'edx', 'ebx', 'esp', 'ebp', 'esi', 'edi' ]
@@ -152,12 +152,23 @@ def disassemble(b):
                 opcode = b[i]
                 instruction_bytes += ' ' + "%02x" % b[i]
                 map = TWO_BYTE_OPCODE_MAP
-                i += 1                
+                i += 1
+
+        if opcode == 0xF2:
+            if i >= len(b) or b[i] != 0xA7:
+                outputList[ "%08X" % orig_index ] = 'db %02x' % b[orig_index]
+                i = orig_index + 1
+                continue
+            else:
+                instruction_bytes += ' ' + "%02x" % b[i]
+                outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + 'repne cmpsd'
+                i += 1      
+                continue      
 
         if isValidOpcode( opcode, map ):
             print ('Found valid opcode')
             if 1:
-                li = GLOBAL_OPCODE_MAP[opcode]
+                li = map[opcode]
                 if li[1] == True:
                     print ('REQUIRES MODRM BYTE')
                     #modrm = ord(b[i])
