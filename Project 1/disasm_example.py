@@ -237,8 +237,19 @@ def disassemble(b):
                         i = orig_index + 1
                 else:
                     print ('Does not require MODRM - modify to complete the instruction and consume the appropriate bytes')
+
+                    size = OPERAND_SIZES[li[2]]
+                    value = int.from_bytes(b[i : i+size], byteorder='little', signed=True)
+
+                    if i + size > len(b):
+                        outputList[ "%08X" % orig_index ] = 'db %02x' % b[orig_index]
+                        i = orig_index + 1
+                        continue
                     if li[2] == 'o':
                         outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + li[0] + GLOBAL_REGISTER_NAMES[rd]
+                        continue
+                    elif li[2] == 'ib' or li[2] == 'iw' or li[2] == 'id' :
+                        outputList[ "%08X" % orig_index ] = instruction_bytes + ' '
                         continue
                     elif li[2] == 'zo':
                         outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + li[0]
