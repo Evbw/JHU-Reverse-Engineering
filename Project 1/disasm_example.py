@@ -87,6 +87,8 @@ TWO_BYTE_OPCODE_MAP = {
     0xAE : [ None , True, 'm', { 7: 'clflush' } ],
 }
 
+OPERAND_SIZES = { 'ib': 1, 'iw': 2, 'id': 4, 'cb': 1, 'cd': 4 }
+
 GLOBAL_REGISTER_NAMES = [ 'eax', 'ecx', 'edx', 'ebx', 'esp', 'ebp', 'esi', 'edi' ]
 
 def isValidOpcode(opcode, map):
