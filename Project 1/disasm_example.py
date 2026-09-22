@@ -240,7 +240,7 @@ def disassemble(b):
                     print ('REQUIRES MODRM BYTE')
                     #modrm = ord(b[i])
                     if i >= len(b):
-                        outputList["%08x" % orig_index] = 'db %02x' % b[orig_index]
+                        outputList["%08X" % orig_index] = 'db %02x' % b[orig_index]
                         i = orig_index + 1
                         continue
                     modrm = b[i]
@@ -262,7 +262,7 @@ def disassemble(b):
                     if result != None:
                         rm_text, j = result
                         for byte in b[i:j]:
-                            instruction_bytes + ' ' + '%02x' % byte
+                            instruction_bytes += ' ' + '%02x' % byte
                         i = j
                         instruction += mnemonic
                         if li[2] == 'mr':
