@@ -1,0 +1,396 @@
+#!/usr/bin/env python3
+######################################################################
+#
+# Be sure to use python3...
+#
+# This is just an example to get you started if you are having
+# difficulty starting the assignment. It is by no means the most
+# efficient way to implement this disassembler, however, it is one
+# that can easily be followed and extended to complete the requirements
+#
+# You may want to import other modules, but certainly not required
+# This implements linear sweep..this can be modified to implement
+# recursive descent as well
+#
+######################################################################
+import sys
+import argparse
+
+#
+# Key is the opcode
+# value is a list of useful information
+GLOBAL_OPCODE_MAP = {
+    # OPCODE : [ mnemonic or None if requires opcode extension, hasModRMByte,
+    # OpEn, OpcodeExtension dictionary ],
+    0x05 : ['add eax, ', False, 'id', None ],
+    0x01 : ['add ', True, 'mr', None], 
+    0x03 : ['add ', True, 'rm', None],
+    0x25 : ['and eax, ', False, 'id', None ],
+    0x21 : ['and ', True, 'mr', None],
+    0x23 : ['and ', True, 'rm', None ],
+    0xE8 : ['call ', False, 'cd', None],
+    0x3D : ['cmp eax, ', False, 'id', None],
+    0x39 : ['cmp ', True, 'mr', None ],
+    0x3B : ['cmp ', True, 'rm', None], 
+    0x48 : ['dec ', False, 'o', None ],
+    0x40 : ['inc ', False, 'o', None ],
+    0xEB : ['jmp ', False, 'cb', None], 
+    0xE9 : ['jmp ', False, 'cd', None],
+    0x74 : ['jz ', False, 'cb', None], 
+    0x75 : ['jnz ', False, 'cb', None ],
+    0x8D : ['lea ', True, 'rm', None],
+    0xA1 : ['mov ', False, 'fd', None ],
+    0xA3 : ['mov ', False, 'td', None], 
+    0xB8 : ['mov ', False, 'oi', None],
+    0x89 : ['mov ', True, 'mr', None], 
+    0x8B : ['mov ', True, 'rm', None],
+    0xA5 : ['movsd ', False, 'zo', None ],
+    0x90 : ['nop ', False, 'zo', None], 
+    0x0D : ['or eax, ', False, 'id', None ],
+    0x09 : ['or ', True, 'mr', None],
+    0x0B : ['or ', True, 'rm', None ],
+    0x58 : ['pop ', False, 'o', None],
+    0x50 : ['push ', False, 'o', None], 
+    0x68 : ['push ', False, 'id', None],
+    0x6A : ['push ', False, 'ib', None ],
+    0xCB : ['retf ', False, 'zo', None],
+    0xCA : ['retf ', False, 'iw', None ],
+    0xC3 : ['retn ', False, 'zo', None], 
+    0xC2 : ['retn ', False, 'iw', None],
+    0x2D : ['sub eax, ', False, 'id', None ],
+    0x29 : ['sub ', True, 'mr', None],
+    0x2B : ['sub ', True, 'rm', None ],
+    0xA9 : ['test eax, ', False, 'id', None], 
+    0x85 : ['test ', True, 'mr', None ],
+    0x35 : ['xor eax, ', False, 'id', None],
+    0x31 : ['xor ', True, 'mr', None ],
+    0x33 : ['xor ', True, 'rm', None], 
+
+    # Codes needing opcode extension
+    0x81 : [ None, True, 'mi', { 0: ('add', 'mi'), 1: ('or', 'mi'), 4: ('and', 'mi'), 5: ('sub', 'mi'), 6: ('xor', 'mi'), 7: ('cmp', 'mi') } ],
+    0x8F : [ None, True, 'm', { 0: ('pop', 'm') } ],
+    0xC7 : [ None, True, 'mi', { 0: ('mov', 'mi') } ],
+    0xF7 : [ None, True, 'rm', { 0: ('test', 'mi'), 2: ('not', 'm'), 7: ('idiv', 'm') }], 
+    0xFF : [ None, True, 'm', { 0: ('inc', 'm'), 1: ('dec', 'm'), 2: ('call', 'm'), 3: ('call', 'm'), 4: ('jmp', 'm'), 5: ('jmp', 'm'), 6: ('push', 'm') }],
+}
+
+TWO_BYTE_OPCODE_MAP = {
+    # OPCODE : [ mnemonic or None if requires opcode extension, hasModRMByte,
+    # OpEn, OpcodeExtension dictionary ],
+    0x84 : ['jz ', False, 'cd', None],
+    0x85 : ['jnz ', False, 'cd', None], 
+
+    # Codes needing opcode extension
+    0xAE : [ None , True, 'm', { 7: ('clflush', 'm') } ],
+}
+
+OPERAND_SIZES = { 'ib': 1, 'iw': 2, 'id': 4, 'cb': 1, 'cd': 4, 'oi': 4, 'fd': 4, 'td': 4, 'cb': 1, 'cd': 4 }
+
+GLOBAL_REGISTER_NAMES = [ 'eax', 'ecx', 'edx', 'ebx', 'esp', 'ebp', 'esi', 'edi' ]
+
+def isValidOpcode(opcode, map):
+    if opcode in map:
+        return True
+    return False
+
+def parseMODRM(modrm):
+    #mod = (modrm & 0xC0) >> 6
+    #reg = (modrm & 0x38) >> 3
+    #rm  = (modrm & 0x07)
+
+    mod = (modrm & 0b11000000) >> 6
+    reg = (modrm & 0b00111000) >> 3
+    rm  = (modrm & 0b00000111)
+    return (mod,reg,rm)
+
+def parseSIB(sib):
+    #scale = (sib & 0xC0) >> 6
+    #index = (sib & 0x38) >> 3
+    #base  = (sib & 0x07)
+
+    scale = (sib & 0b11000000) >> 6
+    index = (sib & 0b00111000) >> 3
+    base  = (sib & 0b00000111)
+    return (scale,index,base)
+
+def parseRM(b, i, mod, rm):
+    need_disp32 = False
+    if mod == 3:
+        return (GLOBAL_REGISTER_NAMES[rm], i)
+    elif mod == 0 and rm == 5:
+        base_text = ''
+        index_text = ''
+        need_disp32 = True
+    else:
+        base_text = GLOBAL_REGISTER_NAMES[rm]
+        index_text = ''
+    if rm == 4:
+        if i >= len(b):
+            return None
+        sib = b[i]
+        scale, index, base = parseSIB(sib)
+        i += 1
+        if base == 5 and mod == 0:
+            base_text = ''
+            need_disp32 = True
+        else:
+            base_text = GLOBAL_REGISTER_NAMES[base]
+        if index == 4:
+            index_text = ''
+        else:
+            index_text = GLOBAL_REGISTER_NAMES[index] + '*' + str(1 << scale)
+    disp = None
+    if mod == 1:
+        if i + 1 > len(b):
+            return None
+        disp = int.from_bytes(b[i:i+1], byteorder='little', signed=True)
+        i += 1
+    elif mod == 2 or need_disp32:
+        if i + 4 > len(b):
+            return None
+        disp = int.from_bytes(b[i:i+4], byteorder='little', signed=False)
+        i += 4
+    parts = []
+    if base_text != '':
+        parts.append(base_text)
+    if index_text != '':
+        parts.append(index_text)
+    text = '+'.join(parts)
+    if disp != None:
+        if disp < 0:
+            text += '-' + '0x%08x' % -disp
+        elif text != '':
+            text += '+' + '0x%08x' % disp
+        else:
+            text = '0x%08x' % disp
+    return ('[' + text + ']', i)
+
+def dbLine(byte):
+    return ('%02X' % byte).ljust(25) + 'db %02X' % byte
+
+def printDisasm( l, labels ):
+
+    # Good idea to add a "global label" structure...
+    # can check to see if "addr" is in it for a branch reference
+
+    for addr in sorted(l):
+        if int(addr, 16) in labels:
+            print('offset_%08Xh:' % int(addr, 16))
+        print( '%s: %s' % (addr, l[addr].rstrip()) )
+
+def disassemble(b):
+
+    ## TM
+    # I would suggest maintaining an "output" dictionary
+    # Your key should be the counter/address [you can use this
+    # to print out labels easily]
+    # and the value should be your disassembly output (or some
+    # other data structure that can represent this..up to you )
+    outputList = {}
+    labels = set()
+
+    i = 0
+
+    while i < len(b):
+
+        implemented = False
+        #opcode = ord(b[i])	#If using python2.7
+        opcode = b[i]	#current byte to work on
+        #instruction_bytes = "%02X" % ord(b[i]) # if using python 2.7
+        instruction_bytes = "%02X" % b[i]
+        instruction = ''
+        orig_index = i
+        map = GLOBAL_OPCODE_MAP
+        
+        i += 1
+
+        # Hint this is here for a reason, but is this the only spot
+        # such a check is required in?
+        if i > len(b):
+           break
+
+        if opcode == 0x0F:
+            if i >= len(b):
+                outputList[ "%08X" % orig_index ] = dbLine(b[orig_index])
+                i = orig_index + 1
+                continue
+            else:
+                opcode = b[i]
+                instruction_bytes += "%02X" % b[i]
+                map = TWO_BYTE_OPCODE_MAP
+                i += 1
+
+        if opcode == 0xF2:
+            if i >= len(b) or b[i] != 0xA7:
+                outputList[ "%08X" % orig_index ] = dbLine(b[orig_index])
+                i = orig_index + 1
+                continue
+            else:
+                instruction_bytes += "%02X" % b[i]
+                outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(25) + 'repne cmpsd'
+                i += 1      
+                continue
+
+        if (opcode & 0xF8) in (0x40, 0x48, 0x50, 0x58, 0xB8):
+            rd = opcode & 0x07
+            opcode = opcode & 0xF8
+
+        if isValidOpcode( opcode, map ):
+            if 1:
+                li = map[opcode]
+                if li[1] == True:
+                    #modrm = ord(b[i])
+                    if i >= len(b):
+                        outputList["%08X" % orig_index] = dbLine(b[orig_index])
+                        i = orig_index + 1
+                        continue
+                    modrm = b[i]
+                    mnemonic = li[0]
+
+                    #instruction_bytes += "%02X" % ord(b[i])
+                    instruction_bytes += "%02X" % b[i]
+
+                    i += 1 # we've consumed it now
+                    mod,reg,rm = parseMODRM( modrm )
+
+                    op_en = li[2]
+
+                    if li[0] == None:
+                        if reg not in li[3]:
+                            outputList["%08X" % orig_index] = dbLine(b[orig_index])
+                            i = orig_index + 1
+                            continue
+                        else:
+                            mnemonic, op_en = li[3][reg]
+                            mnemonic += ' '
+
+                    if mod == 3 and mnemonic in ('lea ', 'clflush '):
+                        outputList["%08X" % orig_index] = dbLine(b[orig_index])
+                        i = orig_index + 1
+                        continue
+
+                    result = parseRM(b, i, mod, rm)
+                    if result != None:
+                        rm_text, j = result
+                        for byte in b[i:j]:
+                            instruction_bytes += '%02X' % byte
+                        i = j
+                        instruction += mnemonic
+                        if op_en == 'mr':
+                            instruction += rm_text + ', ' + GLOBAL_REGISTER_NAMES[reg]
+                            implemented = True
+                        elif op_en == 'rm':
+                            instruction += GLOBAL_REGISTER_NAMES[reg] + ', ' + rm_text
+                            implemented = True
+                        elif op_en == 'm':
+                            instruction += rm_text
+                            implemented = True
+                        elif op_en == 'mi':
+                            if i + 4 <= len(b):
+                                imm = int.from_bytes(b[i : i+4], byteorder='little', signed=False)
+                                for byte in b[i:i+4]:
+                                    instruction_bytes += '%02X' % byte
+                                i += 4
+                                instruction += rm_text + ', ' + '0x%08x' % imm
+                                implemented = True
+
+                    if implemented == True:
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(25) + instruction
+                    else:
+                        outputList[ "%08X" % orig_index ] = dbLine(b[orig_index])
+                        i = orig_index + 1
+                else:
+
+                    size = OPERAND_SIZES.get(li[2])
+                    if size != None:
+                        if i + size > len(b):
+                            outputList[ "%08X" % orig_index ] = dbLine(b[orig_index])
+                            i = orig_index + 1
+                            continue
+                        value = int.from_bytes(b[i : i+size], byteorder='little', signed=False)
+                        for byte in b[i : i+size]:
+                            instruction_bytes += '%02X' % byte
+                        i += size
+
+                    if li[2] == 'o':
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(25) + li[0] + GLOBAL_REGISTER_NAMES[rd]
+                        continue
+                    elif li[2] == 'oi':
+                        text = '0x%08x' % value
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(25) + li[0] + GLOBAL_REGISTER_NAMES[rd] + ', ' + text
+                        continue
+                    elif li[2] == 'ib':
+                        if value >= 0x80:
+                            value = value | 0xFFFFFF00
+                        text = '0x%08x' % value
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(25) + li[0] + text
+                        continue
+                    elif li[2] == 'iw':
+                        text = '0x%04x' % value
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(25) + li[0] + text
+                        continue
+                    elif li[2] == 'id':
+                        text = '0x%08x' % value
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(25) + li[0] + text
+                        continue
+                    elif li[2] == 'zo':
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(25) + li[0]
+                        continue
+                    elif li[2] == 'fd':
+                        text = '0x%08x' % value
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(25) + li[0] + 'eax, [' + text + ']'
+                        continue
+                    elif li[2] == 'td':
+                        text = '0x%08x' % value
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(25) + li[0] + '[' + text + '], eax'
+                        continue
+                    elif li[2] == 'cb':
+                        if value >= 0x80:
+                            value = value - 0x100
+                        target = (i + value) & 0xFFFFFFFF
+                        labels.add(target)
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(25) + li[0] + 'offset_%08Xh' % target
+                        continue
+                    elif li[2] == 'cd':
+                        if value >= 0x80000000:
+                            value = value - 0x100000000
+                        target = (i + value) & 0xFFFFFFFF
+                        labels.add(target)
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(25) + li[0] +  'offset_%08Xh' % target
+                        continue
+                    outputList[ "%08X" % orig_index ] = dbLine(b[orig_index])
+                    i = orig_index + 1
+            #except:
+            else:
+                outputList[ "%08X" % orig_index ] = 'db %02X' % (int(opcode) & 0xff)
+                i = orig_index
+        else:
+            outputList[ "%08X" % orig_index ] = dbLine(b[orig_index])
+            i = orig_index + 1
+
+
+    printDisasm (outputList, labels)
+
+
+def getfile(filename):	
+    with open(filename, 'rb') as f:
+        a = f.read()
+    return a		
+
+def main():
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-i', dest='filename', required=True)
+    args = parser.parse_args()
+
+    try:
+        binary = getfile(args.filename)
+    except:
+        print("An error occurred.")
+
+    disassemble(binary)
+
+
+if __name__ == '__main__':
+    main()
+
