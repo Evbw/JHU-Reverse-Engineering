@@ -263,6 +263,11 @@ def disassemble(b):
                         else:
                             mnemonic, op_en = li[3][reg]
                             mnemonic += ' '
+                            
+                    if mod == 3 and mnemonic in ('lea ', 'clflush '):
+                        outputList["%08X" % orig_index] = 'db %02x' % b[orig_index]
+                        i = orig_index + 1
+                        continue
 
                     result = parseRM(b, i, mod, rm)
                     if result != None:
