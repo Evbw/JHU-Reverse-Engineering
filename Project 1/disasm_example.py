@@ -67,11 +67,11 @@ GLOBAL_OPCODE_MAP = {
     0x33 : ['xor ', True, 'rm', None], 
 
     # Codes needing opcode extension
-    0x81 : [ None, True, 'mi', { 0: 'add', 1: 'or', 4: 'and', 5: 'sub', 6: 'xor', 7: 'cmp' } ],
-    0x8F : [ None, True, 'm', { 0: 'pop' } ],
-    0xC7 : [ None, True, 'mi', { 0: 'mov' } ],
-    0xF7 : [ None, True, 'rm', { 0: 'test', 2: 'not', 7: 'idiv' }], 
-    0xFF : [ None, True, 'm', { 0: 'inc', 1: 'dec', 2: 'call', 3: 'call', 4: 'jmp', 5: 'jmp', 6: 'push' }],
+    0x81 : [ None, True, 'mi', { 0: ('add', 'mi'), 1: ('or', 'mi'), 4: ('and', 'mi'), 5: ('sub', 'mi'), 6: ('xor', 'mi'), 7: ('cmp', 'mi') } ],
+    0x8F : [ None, True, 'm', { 0: ('pop', 'm') } ],
+    0xC7 : [ None, True, 'mi', { 0: ('mov', 'mi') } ],
+    0xF7 : [ None, True, 'rm', { 0: ('test', 'mi'), 2: ('not', 'm'), 7: ('idiv', 'm') }], 
+    0xFF : [ None, True, 'm', { 0: ('inc', 'm'), 1: ('dec', 'm'), 2: ('call', 'm'), 3: ('call', 'm'), 4: ('jmp', 'm'), 5: ('jmp', 'm'), 6: ('push', 'm') }],
 }
 
 TWO_BYTE_OPCODE_MAP = {
@@ -81,7 +81,7 @@ TWO_BYTE_OPCODE_MAP = {
     0x85 : ['jnz ', False, 'cd', None], 
 
     # Codes needing opcode extension
-    0xAE : [ None , True, 'm', { 7: 'clflush' } ],
+    0xAE : [ None , True, 'm', { 7: ('clflush', 'm') } ],
 }
 
 OPERAND_SIZES = { 'ib': 1, 'iw': 2, 'id': 4, 'cb': 1, 'cd': 4, 'oi': 4, 'fd': 4, 'td': 4, 'cb': 1, 'cd': 4 }
@@ -246,7 +246,6 @@ def disassemble(b):
                     modrm = b[i]
                     mnemonic = li[0]
 
-
                     instruction_bytes += ' '
                     #instruction_bytes += "%02x" % ord(b[i])
                     instruction_bytes += "%02x" % b[i]
@@ -254,9 +253,16 @@ def disassemble(b):
                     i += 1 # we've consumed it now
                     mod,reg,rm = parseMODRM( modrm )
 
+                    op_en = li[2]
+
                     if li[0] == None:
-                        print('Need to look at the REG field modrm for the opcode extension')
-                        mnemonic = 'UPDATEME'
+                        if reg not in li[3]:
+                            outputList["%08X" % orig_index] = 'db %02x' % b[orig_index]
+                            i = orig_index + 1
+                            continue
+                        else:
+                            mnemonic, op_en = li[3][reg]
+                            mnemonic += ' '
 
                     result = parseRM(b, i, mod, rm)
                     if result != None:
@@ -265,12 +271,23 @@ def disassemble(b):
                             instruction_bytes += ' ' + '%02x' % byte
                         i = j
                         instruction += mnemonic
-                        if li[2] == 'mr':
+                        if op_en == 'mr':
                             instruction += rm_text + ', ' + GLOBAL_REGISTER_NAMES[reg]
                             implemented = True
-                        elif li[2] == 'rm':
+                        elif op_en == 'rm':
                             instruction += GLOBAL_REGISTER_NAMES[reg] + ', ' + rm_text
                             implemented = True
+                        elif op_en == 'm':
+                            instruction += rm_text
+                            implemented = True
+                        elif op_en == 'mi':
+                            if i + 4 <= len(b):
+                                imm = int.from_bytes(b[i : i+4], byteorder='little', signed=False)
+                                for byte in b[i:i+4]:
+                                    instruction_bytes += ' ' + '%02x' % byte
+                                i += 4
+                                instruction += rm_text + ', ' + '0x%08x' % imm
+                                implemented = True
 
                     if implemented == True:
                         print ('Adding to list ' + instruction)
