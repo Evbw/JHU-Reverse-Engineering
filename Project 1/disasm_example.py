@@ -67,14 +67,11 @@ GLOBAL_OPCODE_MAP = {
     0x33 : ['xor ', True, 'rm', None], 
 
     # Codes needing opcode extension
-    0x81 : [ None, True, 'mi', { 0: 'add', 1: 'or', 2: 'adc', 3: 'sbb', 4:
-                                'and', 5: 'sub', 6: 'xor', 7: 'cmp' } ],
+    0x81 : [ None, True, 'mi', { 0: 'add', 1: 'or', 4: 'and', 5: 'sub', 6: 'xor', 7: 'cmp' } ],
     0x8F : [ None, True, 'm', { 0: 'pop' } ],
     0xC7 : [ None, True, 'mi', { 0: 'mov' } ],
-    0xF7 : [ None, True, 'rm', { 0: 'test', 2: 'not', 3: 'neg', 4:
-                                'mul', 5: 'imul', 6: 'div', 7: 'idiv' }], 
-    0xFF : [ None, True, 'm', { 0: 'inc', 1: 'dec', 2: 'call', 3: 'call', 4:
-                                'jmp', 5: 'jmp', 6: 'push' }],
+    0xF7 : [ None, True, 'rm', { 0: 'test', 2: 'not', 7: 'idiv' }], 
+    0xFF : [ None, True, 'm', { 0: 'inc', 1: 'dec', 2: 'call', 3: 'call', 4: 'jmp', 5: 'jmp', 6: 'push' }],
 }
 
 TWO_BYTE_OPCODE_MAP = {
@@ -87,7 +84,7 @@ TWO_BYTE_OPCODE_MAP = {
     0xAE : [ None , True, 'm', { 7: 'clflush' } ],
 }
 
-OPERAND_SIZES = { 'ib': 1, 'iw': 2, 'id': 4, 'cb': 1, 'cd': 4, 'oi': 4, 'fd': 4, 'td': 4 }
+OPERAND_SIZES = { 'ib': 1, 'iw': 2, 'id': 4, 'cb': 1, 'cd': 4, 'oi': 4, 'fd': 4, 'td': 4, 'cb': 1, 'cd': 4 }
 
 GLOBAL_REGISTER_NAMES = [ 'eax', 'ecx', 'edx', 'ebx', 'esp', 'ebp', 'esi', 'edi' ]
 
@@ -106,12 +103,24 @@ def parseMODRM(modrm):
     rm  = (modrm & 0b00000111)
     return (mod,reg,rm)
 
-def printDisasm( l ):
+def parseSIB(sib):
+    #scale = (sib & 0xC0) >> 6
+    #index = (sib & 0x38) >> 3
+    #base  = (sib & 0x07)
+
+    scale = (sib & 0b11000000) >> 6
+    index = (sib & 0b00111000) >> 3
+    base  = (sib & 0b00000111)
+    return (scale,index,base)
+
+def printDisasm( l, labels ):
 
     # Good idea to add a "global label" structure...
     # can check to see if "addr" is in it for a branch reference
 
     for addr in sorted(l):
+        if int(addr, 16) in labels:
+            print('offset_%08Xh:' % int(addr, 16))
         print( '%s: %s' % (addr, l[addr]) )
 
 def disassemble(b):
@@ -123,6 +132,7 @@ def disassemble(b):
     # and the value should be your disassembly output (or some
     # other data structure that can represent this..up to you )
     outputList = {}
+    labels = set()
 
     i = 0
 
@@ -281,6 +291,20 @@ def disassemble(b):
                         text = '0x%08x' % value
                         outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + li[0] + '[' + text + '],eax'
                         continue
+                    elif li[2] == 'cb':
+                        if value >= 0x80:
+                            value = value - 0x100
+                        target = (i + value) & 0xFFFFFFFF
+                        labels.add(target)
+                        outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + li[0] + 'offset_%08Xh' % target
+                        continue
+                    elif li[2] == 'cd':
+                        if value >= 0x80000000:
+                            value = value - 0x100000000
+                        target = (i + value) & 0xFFFFFFFF
+                        labels.add(target)
+                        outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + li[0] +  'offset_%08Xh' % target
+                        continue
                     outputList[ "%08X" % orig_index ] = 'db %02x' % b[orig_index]
                     i = orig_index + 1
             #except:
@@ -292,7 +316,7 @@ def disassemble(b):
             i = orig_index + 1
 
 
-    printDisasm (outputList)
+    printDisasm (outputList, labels)
 
 
 def getfile(filename):	
@@ -309,7 +333,6 @@ def main():
     # access the value using:
     #if args.examplename != None:
     #    print("Passed in value %s" % args.examplename)
-
 
     import sys 
     if len(sys.argv) < 2:
