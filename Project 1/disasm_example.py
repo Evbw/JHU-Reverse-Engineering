@@ -114,29 +114,25 @@ def parseSIB(sib):
     return (scale,index,base)
 
 def parseRM(b, i, mod, rm):
-    if mod == 0:
-        return None
-    if mod == 1:
-        return None
-    if mod == 2:
-        return None
+    need_disp32 = False
     if mod == 3:
-        if rm == 4:
-            if i >= len(b):
-                return None
-            sib = b[i]
-            parseSIB(sib)
-            i += 1
-        if b == 5 and mod == 0:
+        return (GLOBAL_REGISTER_NAMES[rm], i)
+    if rm == 4:
+        if i >= len(b):
+            return None
+        sib = b[i]
+        scale, index, base = parseSIB(sib)
+        i += 1
+        if base == 5 and mod == 0:
             base_text = ''
             need_disp32 = True
         else:
-            base_text = GLOBAL_REGISTER_NAMES[b]
-        if i == 4:
+            base_text = GLOBAL_REGISTER_NAMES[base]
+        if index == 4:
             index_text = ''
         else:
-            index_text = rm * str(1 << scale)
-        return ('[' + base_text + '+' + index_text + '+' ']' + i)
+            index_text = GLOBAL_REGISTER_NAMES[index] + '*' + str(1 << scale)
+        return ('[' + base_text + '+' + index_text + ']', i)
 
 def printDisasm( l, labels ):
 
