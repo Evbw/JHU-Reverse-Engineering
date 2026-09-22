@@ -113,6 +113,31 @@ def parseSIB(sib):
     base  = (sib & 0b00000111)
     return (scale,index,base)
 
+def parseRM(b, i, mod, rm):
+    if mod == 0:
+        return None
+    if mod == 1:
+        return None
+    if mod == 2:
+        return None
+    if mod == 3:
+        if rm == 4:
+            if i >= len(b):
+                return None
+            sib = b[i]
+            parseSIB(sib)
+            i += 1
+        if b == 5 and mod == 0:
+            base_text = ''
+            need_disp32 = True
+        else:
+            base_text = GLOBAL_REGISTER_NAMES[b]
+        if i == 4:
+            index_text = ''
+        else:
+            index_text = rm * str(1 << scale)
+        return ('[' + base_text + '+' + index_text + '+' ']' + i)
+
 def printDisasm( l, labels ):
 
     # Good idea to add a "global label" structure...
