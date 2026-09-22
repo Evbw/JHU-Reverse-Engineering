@@ -165,6 +165,9 @@ def parseRM(b, i, mod, rm):
             text = '0x%08x' % disp
     return ('[' + text + ']', i)
 
+def dbLine(byte):
+    return ('%02X' % byte).ljust(20) + 'db %02X' % byte
+
 def printDisasm( l, labels ):
 
     # Good idea to add a "global label" structure...
@@ -173,7 +176,7 @@ def printDisasm( l, labels ):
     for addr in sorted(l):
         if int(addr, 16) in labels:
             print('offset_%08Xh:' % int(addr, 16))
-        print( '%s: %s' % (addr, l[addr]) )
+        print( '%s: %s' % (addr, l[addr].rstrip()) )
 
 def disassemble(b):
 
@@ -193,8 +196,8 @@ def disassemble(b):
         implemented = False
         #opcode = ord(b[i])	#If using python2.7
         opcode = b[i]	#current byte to work on
-        #instruction_bytes = "%02x" % ord(b[i]) # if using python 2.7
-        instruction_bytes = "%02x" % b[i]
+        #instruction_bytes = "%02X" % ord(b[i]) # if using python 2.7
+        instruction_bytes = "%02X" % b[i]
         instruction = ''
         orig_index = i
         map = GLOBAL_OPCODE_MAP
@@ -208,23 +211,23 @@ def disassemble(b):
 
         if opcode == 0x0F:
             if i >= len(b):
-                outputList[ "%08X" % orig_index ] = 'db %02x' % b[orig_index]
+                outputList[ "%08X" % orig_index ] = dbLine(b[orig_index])
                 i = orig_index + 1
                 continue
             else:
                 opcode = b[i]
-                instruction_bytes += ' ' + "%02x" % b[i]
+                instruction_bytes += "%02X" % b[i]
                 map = TWO_BYTE_OPCODE_MAP
                 i += 1
 
         if opcode == 0xF2:
             if i >= len(b) or b[i] != 0xA7:
-                outputList[ "%08X" % orig_index ] = 'db %02x' % b[orig_index]
+                outputList[ "%08X" % orig_index ] = dbLine(b[orig_index])
                 i = orig_index + 1
                 continue
             else:
-                instruction_bytes += ' ' + "%02x" % b[i]
-                outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + 'repne cmpsd'
+                instruction_bytes += "%02X" % b[i]
+                outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(20) + 'repne cmpsd'
                 i += 1      
                 continue
 
@@ -240,15 +243,14 @@ def disassemble(b):
                     print ('REQUIRES MODRM BYTE')
                     #modrm = ord(b[i])
                     if i >= len(b):
-                        outputList["%08X" % orig_index] = 'db %02x' % b[orig_index]
+                        outputList["%08X" % orig_index] = dbLine(b[orig_index])
                         i = orig_index + 1
                         continue
                     modrm = b[i]
                     mnemonic = li[0]
 
-                    instruction_bytes += ' '
-                    #instruction_bytes += "%02x" % ord(b[i])
-                    instruction_bytes += "%02x" % b[i]
+                    #instruction_bytes += "%02X" % ord(b[i])
+                    instruction_bytes += "%02X" % b[i]
 
                     i += 1 # we've consumed it now
                     mod,reg,rm = parseMODRM( modrm )
@@ -257,7 +259,7 @@ def disassemble(b):
 
                     if li[0] == None:
                         if reg not in li[3]:
-                            outputList["%08X" % orig_index] = 'db %02x' % b[orig_index]
+                            outputList["%08X" % orig_index] = dbLine(b[orig_index])
                             i = orig_index + 1
                             continue
                         else:
@@ -265,7 +267,7 @@ def disassemble(b):
                             mnemonic += ' '
 
                     if mod == 3 and mnemonic in ('lea ', 'clflush '):
-                        outputList["%08X" % orig_index] = 'db %02x' % b[orig_index]
+                        outputList["%08X" % orig_index] = dbLine(b[orig_index])
                         i = orig_index + 1
                         continue
 
@@ -273,7 +275,7 @@ def disassemble(b):
                     if result != None:
                         rm_text, j = result
                         for byte in b[i:j]:
-                            instruction_bytes += ' ' + '%02x' % byte
+                            instruction_bytes += '%02X' % byte
                         i = j
                         instruction += mnemonic
                         if op_en == 'mr':
@@ -289,16 +291,16 @@ def disassemble(b):
                             if i + 4 <= len(b):
                                 imm = int.from_bytes(b[i : i+4], byteorder='little', signed=False)
                                 for byte in b[i:i+4]:
-                                    instruction_bytes += ' ' + '%02x' % byte
+                                    instruction_bytes += '%02X' % byte
                                 i += 4
                                 instruction += rm_text + ', ' + '0x%08x' % imm
                                 implemented = True
 
                     if implemented == True:
                         print ('Adding to list ' + instruction)
-                        outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + instruction
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(20) + instruction
                     else:
-                        outputList[ "%08X" % orig_index ] = 'db %02x' % b[orig_index]
+                        outputList[ "%08X" % orig_index ] = dbLine(b[orig_index])
                         i = orig_index + 1
                 else:
                     print ('Does not require MODRM - modify to complete the instruction and consume the appropriate bytes')
@@ -306,68 +308,68 @@ def disassemble(b):
                     size = OPERAND_SIZES.get(li[2])
                     if size != None:
                         if i + size > len(b):
-                            outputList[ "%08X" % orig_index ] = 'db %02x' % b[orig_index]
+                            outputList[ "%08X" % orig_index ] = dbLine(b[orig_index])
                             i = orig_index + 1
                             continue
                         value = int.from_bytes(b[i : i+size], byteorder='little', signed=False)
                         for byte in b[i : i+size]:
-                            instruction_bytes += ' ' + '%02x' % byte
+                            instruction_bytes += '%02X' % byte
                         i += size
 
                     if li[2] == 'o':
-                        outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + li[0] + GLOBAL_REGISTER_NAMES[rd]
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(20) + li[0] + GLOBAL_REGISTER_NAMES[rd]
                         continue
                     elif li[2] == 'oi':
                         text = '0x%08x' % value
-                        outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + li[0] + GLOBAL_REGISTER_NAMES[rd] + ',' + text
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(20) + li[0] + GLOBAL_REGISTER_NAMES[rd] + ',' + text
                         continue
                     elif li[2] == 'ib':
                         if value >= 0x80:
                             value = value | 0xFFFFFF00
                         text = '0x%08x' % value
-                        outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + li[0] + text
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(20) + li[0] + text
                         continue
                     elif li[2] == 'iw':
                         text = '0x%04x' % value
-                        outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + li[0] + text
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(20) + li[0] + text
                         continue
                     elif li[2] == 'id':
                         text = '0x%08x' % value
-                        outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + li[0] + text
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(20) + li[0] + text
                         continue
                     elif li[2] == 'zo':
-                        outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + li[0]
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(20) + li[0]
                         continue
                     elif li[2] == 'fd':
                         text = '0x%08x' % value
-                        outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + li[0] + 'eax,[' + text + ']'
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(20) + li[0] + 'eax,[' + text + ']'
                         continue
                     elif li[2] == 'td':
                         text = '0x%08x' % value
-                        outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + li[0] + '[' + text + '],eax'
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(20) + li[0] + '[' + text + '],eax'
                         continue
                     elif li[2] == 'cb':
                         if value >= 0x80:
                             value = value - 0x100
                         target = (i + value) & 0xFFFFFFFF
                         labels.add(target)
-                        outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + li[0] + 'offset_%08Xh' % target
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(20) + li[0] + 'offset_%08Xh' % target
                         continue
                     elif li[2] == 'cd':
                         if value >= 0x80000000:
                             value = value - 0x100000000
                         target = (i + value) & 0xFFFFFFFF
                         labels.add(target)
-                        outputList[ "%08X" % orig_index ] = instruction_bytes + ' ' + li[0] +  'offset_%08Xh' % target
+                        outputList[ "%08X" % orig_index ] = instruction_bytes.ljust(20) + li[0] +  'offset_%08Xh' % target
                         continue
-                    outputList[ "%08X" % orig_index ] = 'db %02x' % b[orig_index]
+                    outputList[ "%08X" % orig_index ] = dbLine(b[orig_index])
                     i = orig_index + 1
             #except:
             else:
-                outputList[ "%08X" % orig_index ] = 'db %02x' % (int(opcode) & 0xff)
+                outputList[ "%08X" % orig_index ] = 'db %02X' % (int(opcode) & 0xff)
                 i = orig_index
         else:
-            outputList[ "%08X" % orig_index ] = 'db %02x' % b[orig_index]
+            outputList[ "%08X" % orig_index ] = dbLine(b[orig_index])
             i = orig_index + 1
 
 
