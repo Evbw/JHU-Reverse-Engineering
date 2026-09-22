@@ -117,6 +117,13 @@ def parseRM(b, i, mod, rm):
     need_disp32 = False
     if mod == 3:
         return (GLOBAL_REGISTER_NAMES[rm], i)
+    elif mod == 0 and rm == 5:
+        base_text = ''
+        index_text = ''
+        need_disp32 = True
+    else:
+        base_text = GLOBAL_REGISTER_NAMES[rm]
+        index_text = ''
     if rm == 4:
         if i >= len(b):
             return None
@@ -132,7 +139,31 @@ def parseRM(b, i, mod, rm):
             index_text = ''
         else:
             index_text = GLOBAL_REGISTER_NAMES[index] + '*' + str(1 << scale)
-        return ('[' + base_text + '+' + index_text + ']', i)
+    disp = None
+    if mod == 1:
+        if i + 1 > len(b):
+            return None
+        disp = int.from_bytes(b[i:i+1], byteorder='little', signed=True)
+        i += 1
+    elif mod == 2 or need_disp32:
+        if i + 4 > len(b):
+            return None
+        disp = int.from_bytes(b[i:i+4], byteorder='little', signed=False)
+        i += 4
+    parts = []
+    if base_text != '':
+        parts.append(base_text)
+    if index_text != '':
+        parts.append(index_text)
+    text = '+'.join(parts)
+    if disp != None:
+        if disp < 0:
+            text += '-' + '0x%08x' % -disp
+        elif text != '':
+            text += '+' + '0x%08x' % disp
+        else:
+            text = '0x%08x' % disp
+    return ('[' + text + ']', i)
 
 def printDisasm( l, labels ):
 
