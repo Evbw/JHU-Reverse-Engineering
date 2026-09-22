@@ -239,6 +239,10 @@ def disassemble(b):
                 if li[1] == True:
                     print ('REQUIRES MODRM BYTE')
                     #modrm = ord(b[i])
+                    if i >= len(b):
+                        outputList["%08x" % orig_index] = 'db %02x' % b[orig_index]
+                        i = orig_index + 1
+                        continue
                     modrm = b[i]
                     mnemonic = li[0]
 
@@ -254,42 +258,19 @@ def disassemble(b):
                         print('Need to look at the REG field modrm for the opcode extension')
                         mnemonic = 'UPDATEME'
 
-                    if mod == 3:
-                        implemented = True
-                        print ('r/m32 operand is direct register')
+                    result = parseRM(b, i, mod, rm)
+                    if result != None:
+                        rm_text, j = result
+                        for byte in b[i:j]:
+                            instruction_bytes + ' ' + '%02x' % byte
+                        i = j
                         instruction += mnemonic
                         if li[2] == 'mr':
-                            instruction += GLOBAL_REGISTER_NAMES[rm]
-                            instruction += ', '
-                            instruction += GLOBAL_REGISTER_NAMES[reg]
+                            instruction += rm_text + ', ' + GLOBAL_REGISTER_NAMES[reg]
+                            implemented = True
                         elif li[2] == 'rm':
-                            instruction += GLOBAL_REGISTER_NAMES[reg]
-                            instruction += ', '
-                            instruction += GLOBAL_REGISTER_NAMES[rm]
-
-                    elif mod == 2:
-                        #Uncomment next line when you've implemented this 
-                        #implemented = True
-                        print ('r/m32 operand is [ reg + disp32 ] -> please implement')
-                        # will need to parse the displacement32
-                    elif mod == 1:
-                        #Uncomment next line when you've implemented this 
-                        #implemented = True
-                        print ('r/m32 operand is [ reg + disp8 ] -> please implement')
-                        # will need to parse the displacement8
-                    else:
-                        if rm == 5:
-                            #Uncomment next line when you've implemented this
-                            #implemented = True
-                            print ('r/m32 operand is [disp32] -> please implement')
-                        elif rm == 4:
-                            #Uncomment next line when you've implemented this
-                            #implemented = True
-                            print ('Indicates SIB byte required -> please implement')
-                        else:
-                            #Uncomment next line when you've implemented this
-                            #implemented = True
-                            print ('r/m32 operand is [reg] -> please implement')
+                            instruction += GLOBAL_REGISTER_NAMES[reg] + ', ' + rm_text
+                            implemented = True
 
                     if implemented == True:
                         print ('Adding to list ' + instruction)
